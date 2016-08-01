@@ -1,7 +1,24 @@
 var fs = require('fs'),
 		path = require('path'),
-		util = require('./util'),
+		utility = require('./utility'),
 		targetPath = process.argv[2];
+
+var dv = new utility.DirVisitor(targetPath);
+
+dv.on('visit-file', function(fn, fs) {
+	console.log("[fil]", fn);
+	console.log("visit %s files", dv.fileCount);
+});
+
+dv.on('visit-folder', function(dn) {
+	console.log("[dir]", dn);
+	console.log("visit %s folders", dv.folderCount);
+});
+
+dv.on('end', function(fc, dc) {
+	console.log("scan %s files, %s folders", fc, dc);
+	console.timeEnd('disk-cleaning');
+});
 
 var cb = function(err, rootDir) {
 	if (err) {
@@ -14,7 +31,7 @@ var cb = function(err, rootDir) {
 		process.exit(2);
 	}
 
-	util.visitDirSync(
+	utility.visitDirSync(
 			targetPath, 
 			fileFilter.bind(null, parseInt(process.argv[3]) || 10 * 1024 * 1024), 
 			checkFile,
@@ -52,14 +69,6 @@ var LibFile = function(fileName) {
 };
 
 var checkFile = function(fileName, fileStat) {
-	/*
-	console.log("File %s mtime %s size %s", 
-			fileName, 
-			fileStat.mtime.toLocaleString(), 
-			util.fileSizeInM(fileStat.size)
-	);
-	*/
-
 	var libFile = new LibFile(fileName);
 	if (!libFile.version) {
 		console.log("Stop handling %s since we can't recognize its version.", fileName);
@@ -68,18 +77,18 @@ var checkFile = function(fileName, fileStat) {
 
 	var value = null;
 	if (!(value = lib[libFile.name])) {
-		util.debug("Keep", libFile.name);
+		utility.debug("Keep", libFile.name);
 		lib[libFile.name] = libFile;
 	} else {
 		if (value.version.localeCompare(libFile.version) < 0) {
-			util.debug("Push (%s) %s", libFile.version, value.fullName);
+			utility.debug("Push (%s) %s", libFile.version, value.fullName);
 			needToDelete.push(value.fullName);
 			lib[libFile.name] = libFile;
 		} else if (value.version.localeCompare(libFile.version) > 0) {
-			util.debug("Push2 (%s) %s", value.version, libFile.fullName);
+			utility.debug("Push2 (%s) %s", value.version, libFile.fullName);
 			needToDelete.push(libFile.fullName);
 		}	else {
-			util.debug("Skip", libFile);
+			utility.debug("Skip", libFile);
 		}
 	}
 
@@ -100,4 +109,5 @@ var fileSizeGreatThan = function(size, fileName, fileStat) {
 };
 
 console.time('disk-cleaning');
-fs.stat(targetPath, cb, endCb);
+//fs.stat(targetPath, cb, endCb);
+dv.visit();

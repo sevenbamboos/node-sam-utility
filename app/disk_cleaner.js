@@ -1,4 +1,5 @@
 var fs = require('fs'),
+		path = require('path'),
 		util = require('./util'),
 		targetPath = process.argv[2];
 
@@ -13,26 +14,90 @@ var cb = function(err, rootDir) {
 		process.exit(2);
 	}
 
-	util.visitDirSync(targetPath, fileSizeGreatThan.bind(null, parseInt(process.argv[3]) || 10 * 1024 * 1024), endCb);
+	util.visitDirSync(
+			targetPath, 
+			fileFilter.bind(null, parseInt(process.argv[3]) || 10 * 1024 * 1024), 
+			checkFile,
+			endCb);
 };
 
 var endCb = function() {
-	console.timeEnd('visitFiles');
+
+	if (needToDelete) {
+		needToDelete.forEach(function(x) {
+			console.log("Will delete", x);
+		});
+	}
+
+	console.timeEnd('disk-cleaning');
 };
 
-var showFileInfo = function(fileName, fileStat) {
-	console.log("File %s mtime %s size %s", 
-			fileName, 
-			fileStat.mtime.toLocaleString(), 
-			util.fileSizeInK(fileStat.size)
-	);
-};
+var lib = {};
+var needToDelete = [];
 
-var fileSizeGreatThan = function(size, fileName, fileStat) {
-	if (fileStat.size >= size) {
-		showFileInfo(fileName, fileStat);
+var LibFile = function(fileName) {
+	var fn = path.basename(fileName),
+			en = path.extname(fn),
+			bn = path.basename(fn, en),
+			index = bn.search(/-[0-9]/);
+
+	this.fullName = fileName;
+	if (index != -1) {
+		this.name = bn.substr(0, index);
+		this.version = bn.substr(index+1);
+	} else {
+		this.name = bn;
+		this.version = null;
 	}
 };
 
-console.time('visitFiles');
+var checkFile = function(fileName, fileStat) {
+	/*
+	console.log("File %s mtime %s size %s", 
+			fileName, 
+			fileStat.mtime.toLocaleString(), 
+			util.fileSizeInM(fileStat.size)
+	);
+	*/
+
+	var libFile = new LibFile(fileName);
+	if (!libFile.version) {
+		console.log("Stop handling %s since we can't recognize its version.", fileName);
+		return;
+	}
+
+	var value = null;
+	if (!(value = lib[libFile.name])) {
+		util.debug("Keep", libFile.name);
+		lib[libFile.name] = libFile;
+	} else {
+		if (value.version.localeCompare(libFile.version) < 0) {
+			util.debug("Push (%s) %s", libFile.version, value.fullName);
+			needToDelete.push(value.fullName);
+			lib[libFile.name] = libFile;
+		} else if (value.version.localeCompare(libFile.version) > 0) {
+			util.debug("Push2 (%s) %s", value.version, libFile.fullName);
+			needToDelete.push(libFile.fullName);
+		}	else {
+			util.debug("Skip", libFile);
+		}
+	}
+
+};
+
+var fileFilter = function(size, fileName, fileStat) {
+	return fileSizeGreatThan(size, fileName, fileStat) && fileNameCheck(fileName);
+};
+
+var fileNameCheck = function(fileName) {
+	return (fileName.endsWith(".jar") && !fileName.endsWith("-sources.jar")) ||
+		fileName.endsWith(".zip") || 
+		fileName.endsWith(".msi");
+};
+
+var fileSizeGreatThan = function(size, fileName, fileStat) {
+	return fileStat.size >= size;
+};
+
+console.time('disk-cleaning');
 fs.stat(targetPath, cb, endCb);

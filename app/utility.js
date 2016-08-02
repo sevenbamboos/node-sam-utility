@@ -3,6 +3,13 @@ var fs = require('fs'),
 		util = require('util'),
 		events = require('events');
 
+var enableDebug = false;
+exports.debug = function() {
+	if (enableDebug) {
+		console.log.apply(null, arguments);
+	}
+};	
+
 exports.fileSizeInM = function(size) {
 	return (size/1024/1024).toFixed(2) + "M";
 };
@@ -11,17 +18,59 @@ exports.fileSizeInK = function(size) {
 	return (size/1024).toFixed(2) + "K";
 };
 
-function DirVisitor(dir) {
-	this.reset(dir);
+function deleteDirSync(dir) {
+	var fstat = null;
+	try {
+		fstat = fs.statSync(dir);
+	} catch (err) {
+		console.error(err.toString());
+		return;
+	}
+
+	if (fstat.isFile()) {
+		console.log("[rm]", dir);
+		fs.unlinkSync(dir);
+
+	} else if (fstat.isDirectory()) {
+		var children = fs.readdirSync(dir);
+		children.forEach(function(fn) {
+			var filePath = path.join(dir, fn);
+			deleteDirSync(filePath);
+		});
+
+		fs.rmdirSync(dir);
+
+	} else {
+		throw "Unknown dir " + fstat;
+	}
+};
+
+exports.deleteDirSync = deleteDirSync;
+
+// dir visitor start
+
+function DirVisitor() {
 	events.EventEmitter.call(this);
 }
 
 util.inherits(DirVisitor, events.EventEmitter);
 
-DirVisitor.prototype.reset = function(anotherDir) {
-	this.dir = anotherDir;
-	this.fileCount = 0;
-	this.folderCount = 0;
+DirVisitor.prototype.reset = function(anotherDir, cb) {
+	var self = this;
+	fs.stat(anotherDir, function(err, stat) {
+		if (err) {
+			self.emit('error', err);
+		}
+
+		if (!stat.isDirectory()) {
+			self.emit('error', anotherDir + " is not a valid path");
+		}	
+
+		self.dir = anotherDir;
+		self.fileCount = 0;
+		self.folderCount = 0;
+		cb(self);
+	});
 };
 
 DirVisitor.prototype.visit = function() {
@@ -54,28 +103,5 @@ function _visitSync(dir, fileCB, folderCB) {
 
 exports.DirVisitor = DirVisitor;
 
-function _visitDirSync(dir, fileFilter, cb, endCb) {
-	var files = fs.readdirSync(dir);
-	files.forEach(function(f) { 
-		var fileName = path.join(dir, f);
-		var file = fs.statSync(fileName);
-		if (file.isFile() && fileFilter(fileName, file)) {
-			cb(fileName, file);
-		} else if (file.isDirectory()) {
-			_visitDirSync(fileName, fileFilter, cb);
-		}
-	});
+// dir visitor end
 
-	if (endCb) {
-		endCb();
-	}
-}
-
-exports.visitDirSync = _visitDirSync;
-
-var enableDebug = false;
-exports.debug = function() {
-	if (enableDebug) {
-		console.log.apply(null, arguments);
-	}
-};	

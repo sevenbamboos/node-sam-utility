@@ -1,113 +1,121 @@
 var fs = require('fs'),
 		path = require('path'),
-		utility = require('./utility'),
-		targetPath = process.argv[2];
+		utility = require('./utility');
 
-var dv = new utility.DirVisitor(targetPath);
+var mavenCleaner = new utility.DirVisitor();
+mavenCleaner.willDelete = 0;
 
-dv.on('visit-file', function(fn, fs) {
-	console.log("[fil]", fn);
-	console.log("visit %s files", dv.fileCount);
+var needToDelete = [],
+		lib = {};
+
+mavenCleaner.on('error', function(err) {
+	console.error(err.toString());
+	process.exit(1);
 });
 
-dv.on('visit-folder', function(dn) {
-	console.log("[dir]", dn);
-	console.log("visit %s folders", dv.folderCount);
-});
-
-dv.on('end', function(fc, dc) {
-	console.log("scan %s files, %s folders", fc, dc);
-	console.timeEnd('disk-cleaning');
-});
-
-var cb = function(err, rootDir) {
-	if (err) {
-		console.error(err.toString());
-		process.exit(1);
+mavenCleaner.on('visit-file', function(fn, fs) {
+	if (Math.random() > 0.999) { // try to reduce the count of printing
+		process.stdout.write("Files: " + mavenCleaner.fileCount + "\033[0G");
 	}
+	var func = checkMavenRepo().bind(null, lib, needToDelete, this.size)
+	func.call(null, fn, fs);
+});
 
-	if (!rootDir.isDirectory()) {
-		console.error("Path %s is not existing or not a directory", targetPath);
-		process.exit(2);
-	}
+mavenCleaner.on('visit-folder', function(dn) {
+});
 
-	utility.visitDirSync(
-			targetPath, 
-			fileFilter.bind(null, parseInt(process.argv[3]) || 10 * 1024 * 1024), 
-			checkFile,
-			endCb);
-};
-
-var endCb = function() {
-
+mavenCleaner.on('end', function(fc, dc) {
+	var self = this;
 	if (needToDelete) {
 		needToDelete.forEach(function(x) {
-			console.log("Will delete", x);
+			deleteParentDir(x, self);
 		});
 	}
 
-	console.timeEnd('disk-cleaning');
-};
+	if (this.test) {
+		console.log("Can release", utility.fileSizeInM(this.willDelete));
+	}
 
-var lib = {};
-var needToDelete = [];
+	console.log("scanned %s files, %s folders", fc, dc);
+	console.timeEnd('maven-cleaner');
 
-var LibFile = function(fileName) {
-	var fn = path.basename(fileName),
-			en = path.extname(fn),
-			bn = path.basename(fn, en),
-			index = bn.search(/-[0-9]/);
+});
 
-	this.fullName = fileName;
-	if (index != -1) {
-		this.name = bn.substr(0, index);
-		this.version = bn.substr(index+1);
+var deleteParentDir = function(dir, cleaner) {
+	var parentDir = path.dirname(dir);
+	if (cleaner.test) {
+		console.log("Will delete", parentDir);
+		cleaner.willDelete += fs.statSync(dir).size;
 	} else {
-		this.name = bn;
-		this.version = null;
+		utility.deleteDirSync(parentDir);
 	}
 };
 
-var checkFile = function(fileName, fileStat) {
-	var libFile = new LibFile(fileName);
-	if (!libFile.version) {
-		console.log("Stop handling %s since we can't recognize its version.", fileName);
-		return;
-	}
+var checkMavenRepo = function() {
+	var checkFileName = function(fileName) {
+		return (fileName.endsWith(".jar") && !fileName.endsWith("-sources.jar")) ||
+			fileName.endsWith(".zip"); 
+	};
 
-	var value = null;
-	if (!(value = lib[libFile.name])) {
-		utility.debug("Keep", libFile.name);
-		lib[libFile.name] = libFile;
-	} else {
-		if (value.version.localeCompare(libFile.version) < 0) {
-			utility.debug("Push (%s) %s", libFile.version, value.fullName);
-			needToDelete.push(value.fullName);
-			lib[libFile.name] = libFile;
-		} else if (value.version.localeCompare(libFile.version) > 0) {
-			utility.debug("Push2 (%s) %s", value.version, libFile.fullName);
-			needToDelete.push(libFile.fullName);
-		}	else {
-			utility.debug("Skip", libFile);
+	var fileSizeGreatThan = function(fs, size) {
+		return fs.size >= size;
+	};
+
+	var LibFile = function(fileName) {
+		var fn = path.basename(fileName),
+				en = path.extname(fn),
+				bn = path.basename(fn, en),
+				index = bn.search(/-[0-9]/);
+
+		this.fullName = fileName;
+		if (index != -1) {
+			this.name = bn.substr(0, index);
+			this.version = bn.substr(index+1);
+		} else {
+			this.name = bn;
+			this.version = null;
 		}
-	}
+	};
 
+	return function(lib, needToDelete, size, fileName, fileStat) {
+		
+		if (!checkFileName(fileName) || !fileSizeGreatThan(fileStat, size)) {
+			return;
+		}
+
+		var libFile = new LibFile(fileName);
+		if (!libFile.version) {
+			console.log("Stop handling %s since we can't recognize its version.", fileName);
+			return;
+		}
+
+		var value = null;
+		if (!(value = lib[libFile.name])) {
+			utility.debug("Keep", libFile.name);
+			lib[libFile.name] = libFile;
+		} else {
+			if (value.version.localeCompare(libFile.version) < 0) {
+				utility.debug("Delete %s of %s since having newer %s", libFile.name, value.version, libFile.version);
+				needToDelete.push(value.fullName);
+				lib[libFile.name] = libFile;
+			} else if (value.version.localeCompare(libFile.version) > 0) {
+				utility.debug("Discard %s of %s since the newer %s", libFile.name, libFile.version, value.version);
+				needToDelete.push(libFile.fullName);
+			}	else {
+				utility.debug("Skip", libFile);
+			}
+		}
+	};
 };
 
-var fileFilter = function(size, fileName, fileStat) {
-	return fileSizeGreatThan(size, fileName, fileStat) && fileNameCheck(fileName);
-};
+exports.cleanMaven = function(targetPath, onlyTest, size) {
+	needToDelete = [],
+	lib = {};
+	mavenCleaner.test = onlyTest === "test";
+	mavenCleaner.size = parseInt(size) || 1024 * 1024;
 
-var fileNameCheck = function(fileName) {
-	return (fileName.endsWith(".jar") && !fileName.endsWith("-sources.jar")) ||
-		fileName.endsWith(".zip") || 
-		fileName.endsWith(".msi");
+	console.time('maven-cleaner');
+	mavenCleaner.reset(targetPath, function(visitor) {
+		visitor.visit();
+	});
 };
-
-var fileSizeGreatThan = function(size, fileName, fileStat) {
-	return fileStat.size >= size;
-};
-
-console.time('disk-cleaning');
-//fs.stat(targetPath, cb, endCb);
-dv.visit();

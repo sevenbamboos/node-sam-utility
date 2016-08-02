@@ -2,7 +2,7 @@
 ## Maven cleaner
 Usage:
 ```
-var disk_cleaner = require('./disk_cleaner');
-disk_cleaner.cleanMaven(process.argv[2], process.argv[3], process.argv[4]);
+var samUtility = require('sam-utility');
+// target-folder, [test or delete], [file-size (1M by default)]
+samUtility.DiskCleaner.cleanMaven(process.argv[2], process.argv[3], process.argv[4]);
 ```
-

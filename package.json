@@ -1,7 +1,7 @@
 {
   "name": "sam-utility",
   "version": "1.0.3",
-  "description": "",
+  "description": "Sam's commonly-used utilities",
   "main": "app/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

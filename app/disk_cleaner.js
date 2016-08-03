@@ -17,7 +17,7 @@ mavenCleaner.on('visit-file', function(fn, fs) {
 	if (Math.random() > 0.999) { // try to reduce the count of printing
 		process.stdout.write("Files: " + mavenCleaner.fileCount + "\033[0G");
 	}
-	var func = checkMavenRepo().bind(null, lib, needToDelete, this.size)
+	var func = checkMavenRepo().bind(null, lib, needToDelete, this.size);
 	func.call(null, fn, fs);
 });
 
@@ -109,7 +109,7 @@ var checkMavenRepo = function() {
 };
 
 exports.cleanMaven = function(targetPath, onlyTest, size) {
-	needToDelete = [],
+	needToDelete = [];
 	lib = {};
 	mavenCleaner.test = onlyTest === "test";
 	mavenCleaner.size = parseInt(size) || 1024 * 1024;

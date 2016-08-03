@@ -11,11 +11,11 @@ exports.debug = function() {
 };	
 
 exports.fileSizeInM = function(size) {
-	return (size/1024/1024).toFixed(2) + "M";
+	return (size/1024/1024).toFixed(3) + "M";
 };
 
 exports.fileSizeInK = function(size) {
-	return (size/1024).toFixed(2) + "K";
+	return (size/1024).toFixed(3) + "K";
 };
 
 function deleteDirSync(dir) {
@@ -43,7 +43,7 @@ function deleteDirSync(dir) {
 	} else {
 		throw "Unknown dir " + fstat;
 	}
-};
+}
 
 exports.deleteDirSync = deleteDirSync;
 

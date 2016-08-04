@@ -16,6 +16,14 @@ var Message = function(msg) {
 	}.bind(this));	
 	assignPropertyWithArray(this, this.segments);
 	this.length = this.segments.length;
+	var headers = this.segments.filter(function(segment) { return segment.name == HEADER_NAME; });
+	if (!headers) {
+		throw new Error("Can't find header for HL7 message");
+	}
+	this.header = headers[0];
+	this.messageType = this.header[8][0][0];
+	this.triggerEvent = this.header[8][0][1];
+	this.version = this.header[11];
 };
 
 Message.prototype.toString = function() {
@@ -50,6 +58,20 @@ var Segment = function(seg) {
 	this.length = this.fields.length;
 };
 
+Segment.prototype.get = function(findex, frindex, cindex, scindex) {
+	if (arguments.length === 0) {
+		return this.toString();
+	}
+	var field = this[findex-1];
+	if (field === undefined) {
+		throw new Error("Invalid field index:" + findex + " for segment:" + this.toString());
+	} else if (typeof field === "string") {
+		return field;
+	} else {
+		return field.get(frindex, cindex, scindex);
+	}
+};
+
 Segment.prototype.toString = function() {
 	return this.fields.map(function(field) {
 		return field.toString();
@@ -82,16 +104,36 @@ var Field = function(fie) {
 	this.length = this.values.length;
 };
 
-Field.prototype.toString = function() {
-	return this.values.map(function(v) {
-		if (typeof v === 'string') {
-			return v;
-		} else {
-			return v.map(function(comp) { 
-				return comp.toString(); 
-			}).join(COMPONENT_SPLIT);
+Field.prototype.get = function(findex, cindex, scindex) {
+	if (findex === undefined && cindex === undefined && scindex === undefined) {
+		return this.toString();
+	} 
+
+	var entry = this[findex];
+	if (cindex === undefined && scindex === undefined) {
+		return getFieldValue(entry);	
+	} else {
+		var comp = entry[cindex-1];
+		if (comp === undefined) {
+			throw new Error("Invalid index:" + cindex + " for component:" + getFieldValue(entry));
 		}
-	}).join(FIELD_REPETITIVE_SPLIT);
+		return comp.get(scindex);
+	}
+
+};
+
+Field.prototype.toString = function() {
+	return this.values.map(getFieldValue).join(FIELD_REPETITIVE_SPLIT);
+};
+
+var getFieldValue = function(fieldEntry) {
+	if (typeof fieldEntry === 'string') {
+		return fieldEntry;
+	} else {
+		return fieldEntry.map(function(comp) { 
+			return comp.toString(); 
+		}).join(COMPONENT_SPLIT);
+	}
 };
 
 // sub-component index starting from 0
@@ -113,12 +155,30 @@ var Component = function(comp) {
 	}
 };
 
+Component.prototype.get = function(i) {
+	if (this.isSingleValue()) {
+		return this.value;
+	} else {
+		if (i === undefined) {
+			return this.toString();
+		} else if (i < 1 || i > this.length) {
+			throw new Error("Invalid index:" + i + ", which should be [1," + this.length + "]");
+		} else {
+			return this[i-1];
+		}
+	}
+};
+
 Component.prototype.toString = function() {
-	if (typeof this.value === 'string') {
+	if (this.isSingleValue()) {
 		return this.value;
 	} else {
 		return this.value.join(SUB_COMPONENT_SPLIT);
 	}
+};
+
+Component.prototype.isSingleValue = function() {
+	return typeof this.value === 'string';
 };
 
 var assignPropertyWithArray = function(obj, arr) {

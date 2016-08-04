@@ -14,16 +14,17 @@ var Message = function(msg) {
 			this.segments.push(new Segment(seg.trim()));
 		}
 	}.bind(this));	
-	assignPropertyWithArray(this, this.segments);
 	this.length = this.segments.length;
+
+	// find and process header
 	var headers = this.segments.filter(function(segment) { return segment.name == HEADER_NAME; });
 	if (!headers) {
 		throw new Error("Can't find header for HL7 message");
 	}
 	this.header = headers[0];
-	this.messageType = this.header[8][0][0];
-	this.triggerEvent = this.header[8][0][1];
-	this.version = this.header[11];
+	this.messageType = this.header.get(9, 0, 1);
+	this.triggerEvent = this.header.get(9, 0, 2);
+	this.version = this.header.get(12);
 };
 
 Message.prototype.toString = function() {
@@ -52,9 +53,6 @@ var Segment = function(seg) {
 		this.fields.shift();
 	}
 	
-	if (this.fields) {
-		assignPropertyWithArray(this, this.fields);
-	}
 	this.length = this.fields.length;
 };
 
@@ -62,7 +60,7 @@ Segment.prototype.get = function(findex, frindex, cindex, scindex) {
 	if (arguments.length === 0) {
 		return this.toString();
 	}
-	var field = this[findex-1];
+	var field = this.fields[findex-1];
 	if (field === undefined) {
 		throw new Error("Invalid field index:" + findex + " for segment:" + this.toString());
 	} else if (typeof field === "string") {
@@ -80,7 +78,7 @@ Segment.prototype.toString = function() {
 
 // repetitive field and component index starting from 0
 var Field = function(fie) {
-	this.values = [];
+	this.fields = [];
 
 	var parseValue = function(val) {
 		if ((val.indexOf(COMPONENT_SPLIT) !== -1) || 
@@ -97,11 +95,16 @@ var Field = function(fie) {
 	};
 	
 	fie.split(FIELD_REPETITIVE_SPLIT).forEach(function(val) {
-		this.values.push(parseValue(val));
+		this.fields.push(parseValue(val));
 	}.bind(this));
 
-	assignPropertyWithArray(this, this.values);
-	this.length = this.values.length;
+	this.length = this.fields.length;
+};
+
+Field.prototype.set = function(value, findex, cindex, scindex) {
+	if (arguments.length === 1) {
+		//TODO continue here
+	}
 };
 
 Field.prototype.get = function(findex, cindex, scindex) {
@@ -109,7 +112,7 @@ Field.prototype.get = function(findex, cindex, scindex) {
 		return this.toString();
 	} 
 
-	var entry = this[findex];
+	var entry = this.fields[findex];
 	if (cindex === undefined && scindex === undefined) {
 		return getFieldValue(entry);	
 	} else {
@@ -123,7 +126,7 @@ Field.prototype.get = function(findex, cindex, scindex) {
 };
 
 Field.prototype.toString = function() {
-	return this.values.map(getFieldValue).join(FIELD_REPETITIVE_SPLIT);
+	return this.fields.map(getFieldValue).join(FIELD_REPETITIVE_SPLIT);
 };
 
 var getFieldValue = function(fieldEntry) {
@@ -146,12 +149,23 @@ var Component = function(comp) {
 		});
 		this.value = subComponents;
 		this.length = subComponents.length;
-		assignPropertyWithArray(this, subComponents);
 
 	} else {
 		this.value = comp;
 		this.length = 1;
-		this[0] = comp;
+	}
+};
+
+Component.prototype.set = function(value, i) {
+	if (this.isSingleValue() || arguments.length === 1) {
+		Component.call(this, value);
+	} else {
+		if (i < 1 || i > this.length) {
+			throw new Error("Invalid index:" + i + ", which should be [1," + this.length + "]");
+		} else {
+			//TODO encode the possible split characters?
+			this.value[i-1] = value;
+		}
 	}
 };
 
@@ -164,7 +178,7 @@ Component.prototype.get = function(i) {
 		} else if (i < 1 || i > this.length) {
 			throw new Error("Invalid index:" + i + ", which should be [1," + this.length + "]");
 		} else {
-			return this[i-1];
+			return this.value[i-1];
 		}
 	}
 };
@@ -179,17 +193,6 @@ Component.prototype.toString = function() {
 
 Component.prototype.isSingleValue = function() {
 	return typeof this.value === 'string';
-};
-
-var assignPropertyWithArray = function(obj, arr) {
-	if (!arr) {
-		obj[0] = '';
-		return;
-	}
-
-	for (var i = 0; i < arr.length; i++) {
-		obj[i] = arr[i];
-	}
 };
 
 exports.Component = Component;

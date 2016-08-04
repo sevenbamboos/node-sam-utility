@@ -22,13 +22,13 @@ describe('parseHL7', function() {
 			assert.equal("ORU", msg.messageType);
 			assert.equal("R01", msg.triggerEvent);
 			assert.equal("2.5", msg.version);
-			assert.equal("MSH", msg[0].name);
-			assert.equal("PID", msg[1].name);
-			assert.equal("PV1", msg[2].name);
-			assert.equal("ORC", msg[3].name);
-			assert.equal("NTE", msg[4].name);
-			assert.equal("OBR", msg[5].name);
-			assert.equal("NTE", msg[6].name);
+			assert.equal("MSH", msg.segments[0].name);
+			assert.equal("PID", msg.segments[1].name);
+			assert.equal("PV1", msg.segments[2].name);
+			assert.equal("ORC", msg.segments[3].name);
+			assert.equal("NTE", msg.segments[4].name);
+			assert.equal("OBR", msg.segments[5].name);
+			assert.equal("NTE", msg.segments[6].name);
 		});
 	});
 
@@ -38,13 +38,9 @@ describe('parseHL7', function() {
 			var seg = new parseHL7.Segment(str);
 			assert.equal(12, seg.length);
 			assert.equal("MSH", seg.name);
-			assert.equal("|", seg[0]);
 			assert.equal("|", seg.get(1));
-			assert.equal("^~\&", seg[1]);
 			assert.equal("^~\&", seg.get(2));
-			assert.equal("Sending test", seg[2]);
 			assert.equal("Sending test", seg.get(3));
-			assert.equal("Sending test facility", seg[3]);
 			assert.equal("Sending test facility", seg.get(4));
 		});
 
@@ -53,19 +49,12 @@ describe('parseHL7', function() {
 			var seg = new parseHL7.Segment(str);
 			assert.equal(19, seg.length);
 			assert.equal("PID", seg.name);
-			assert.equal("", seg[0]);
 			assert.equal("", seg.get(1));
-			assert.equal("", seg[1]);
 			assert.equal("", seg.get(2));
-			assert.equal("John Dow", seg[4]);
 			assert.equal("John Dow", seg.get(5));
-			assert.equal("64121968", seg[6]);
 			assert.equal("64121968", seg.get(7));
-			assert.equal("M", seg[7]);
 			assert.equal("M", seg.get(8));
-			assert.equal("", seg[17]);
 			assert.equal("", seg.get(18));
-			assert.equal("987654321", seg[18]);
 			assert.equal("987654321", seg.get(19));
 			assert.equal("Every town, every street", seg.get(11, 0, 1));
 			assert.equal("2", seg.get(11, 0, 2, 1));
@@ -77,7 +66,6 @@ describe('parseHL7', function() {
 			var str = "MSH";
 			var seg = new parseHL7.Segment(str);
 			assert.equal(1, seg.length);
-			assert.equal("|", seg[0]);
 			assert.equal("|", seg.get(1));
 			assert.equal("|", seg.get());
 		});
@@ -101,9 +89,6 @@ describe('parseHL7', function() {
 			var str = "1~2~3";
 			var field = new parseHL7.Field(str);
 			assert.equal(3, field.length);
-			assert.equal("1", field[0]);
-			assert.equal("2", field[1]);
-			assert.equal("3", field[2]);
 			assert.equal("1", field.get(0));
 			assert.equal("2", field.get(1));
 			assert.equal("3", field.get(2));
@@ -115,7 +100,6 @@ describe('parseHL7', function() {
 			var str = "1";
 			var field = new parseHL7.Field(str);
 			assert.equal(1, field.length);
-			assert.equal("1", field[0]);
 			assert.equal("1", field.get(0));
 			assert.equal("1", field.get(), "By default, get didn't return the first entry");
 		});
@@ -124,7 +108,6 @@ describe('parseHL7', function() {
 			var str = "";
 			var field = new parseHL7.Field(str);
 			assert.equal(1, field.length);
-			assert.equal("", field[0]);
 			assert.equal("", field.get(0));
 			assert.equal("", field.get(), "By default, get didn't return the first entry");
 		});
@@ -132,21 +115,12 @@ describe('parseHL7', function() {
 		it('should parse complex components', function() {
 			var str = "a^b&c~2";
 			var field = new parseHL7.Field(str);
-			var field1 = field[0];
-			var field2 = field[1];
-			var comp11 = field1[0];
-			var comp12 = field1[1];
-			assert.equal("a", comp11.toString());
 			assert.equal("a", field.get(0, 1));
-			assert.equal("b&c", comp12.toString());
 			assert.equal("b&c", field.get(0, 2));
 			assert.throws(function() { field.get(0, 0); } , Error, "Invalid component index didn't throw error");
 			assert.throws(function() { field.get(0, 3); } , Error, "Invalid component index didn't throw error");
-			assert.equal("b", comp12[0]);
 			assert.equal("b", field.get(0, 2, 1));
-			assert.equal("c", comp12[1]);
 			assert.equal("c", field.get(0, 2, 2));
-			assert.equal("2", field2.toString());
 			assert.equal("2", field.get(1));
 		});
 	});
@@ -156,9 +130,6 @@ describe('parseHL7', function() {
 			var str = "1&2&3";
 			var comp = new parseHL7.Component(str);
 			assert.equal(3, comp.length);
-			assert.equal("1", comp[0]);
-			assert.equal("2", comp[1]);
-			assert.equal("3", comp[2]);
 			assert.equal("1", comp.get(1));
 			assert.equal("2", comp.get(2));
 			assert.equal("3", comp.get(3));
@@ -170,7 +141,6 @@ describe('parseHL7', function() {
 			var str = "1";
 			var comp = new parseHL7.Component(str);
 			assert.equal(1, comp.length);
-			assert.equal("1", comp[0]);
 			assert.equal("1", comp.get(1));
 			assert.equal("1", comp.get(), "single value shouldn't care about index");
 		});
@@ -179,10 +149,29 @@ describe('parseHL7', function() {
 			var str = "";
 			var comp = new parseHL7.Component(str);
 			assert.equal(1, comp.length);
-			assert.equal("", comp[0]);
 			assert.equal("", comp.get(1));
 			assert.equal("", comp.get(), "single value shouldn't care about index");
 		});
+
+		it('should assign single value', function() {
+			var str = "1&2&3";
+			var comp = new parseHL7.Component(str);
+			comp.set("a", 1);
+			comp.set("b", 2);
+			comp.set("c", 3);
+			assert.equal("a&b&c", comp.get());
+			assert.throws(function() { comp.set("d", 0); }, Error, "Index shouldn't be less than 1 (since it's 1 based)");
+			assert.throws(function() { comp.set("d", comp.length+1); }, Error, "Index shouldn't be larger than the length");
+		});
+
+		it('should assign value as a whole component', function() {
+			var str = "1&2&3";
+			var comp = new parseHL7.Component(str);
+			comp.set("a&b&c");
+			assert.equal("a&b&c", comp.get());
+		});
+
+		//TODO assign component value with special encoding characters
 	});
 });
 

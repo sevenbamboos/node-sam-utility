@@ -10,6 +10,15 @@ exports.debug = function() {
 	}
 };	
 
+exports.paramSize = function(args) {
+	for (var i = 0; i < args.length; i++) {
+		if (args[i] === undefined) {
+			return i;
+		}
+	}
+	return args.length;
+};
+
 exports.fileSizeInM = function(size) {
 	return (size/1024/1024).toFixed(3) + "M";
 };

@@ -67,20 +67,82 @@ describe('parseHL7', function() {
 			var seg = new parseHL7.Segment(str);
 			assert.equal(1, seg.length);
 			assert.equal("|", seg.get(1));
-			assert.equal("|", seg.get());
+			assert.equal("MSH", seg.get());
 		});
 
 		it('should parse single value', function() {
 			var str = "PID";
 			var seg = new parseHL7.Segment(str);
 			assert.equal(0, seg.length);
-			assert.equal("", seg.toString());
-			assert.equal(undefined, seg[0]);
-			assert.equal("", seg.get());
+			assert.equal("PID", seg.toString());
+			assert.equal("PID", seg.get());
 		});
 
 		it('should not parse empty value', function() {
 			assert.throws(function() {new parseHL7.Segment("");}, Error);
+		});
+
+		it('should assign single value to segment as a whole', function() {
+			var str = 'PID|field1|field2|';
+			var seg = new parseHL7.Segment(str);
+			seg.set('PID|xxx');
+			assert.equal('PID|xxx', seg.get());
+		});
+
+		it('should assign value to field', function() {
+			var str = 'PID|field1|field2|';
+			var seg = new parseHL7.Segment(str);
+			seg.set('new-field2', 2);
+			assert.equal('PID|field1|new-field2', seg.get());
+		});
+
+		it('should assign value to field at extra place', function() {
+			var str = 'PID|field1|field2|';
+			var seg = new parseHL7.Segment(str);
+			seg.set('new-field', 4);
+			assert.equal('PID|field1|field2||new-field', seg.get());
+		});
+
+		it('should assign value to repetitive field', function() {
+			var str = 'PID|field1|field2~field2b|';
+			var seg = new parseHL7.Segment(str);
+			seg.set('new-field', 2, 1);
+			assert.equal('PID|field1|field2~new-field', seg.get());
+		});
+
+		it('should assign value to repetitive field at extra place', function() {
+			var str = 'PID|field1|field2~field2b|';
+			var seg = new parseHL7.Segment(str);
+			seg.set('new-field', 2, 3);
+			assert.equal('PID|field1|field2~field2b~~new-field', seg.get());
+		});
+
+		it('should assign value to component', function() {
+			var str = 'PID|field1|field2^field2b|';
+			var seg = new parseHL7.Segment(str);
+			seg.set('new-field', 2, 0, 2);
+			assert.equal('PID|field1|field2^new-field', seg.get());
+		});
+
+		it('should assign value to component at extra place', function() {
+			var str = 'PID|field1|field2^field2b|';
+			var seg = new parseHL7.Segment(str);
+			seg.set('new-field', 2, 0, 2);
+			assert.equal('PID|field1|field2^new-field', seg.get());
+		});
+
+		it('should assign value to sub-component', function() {
+			var str = 'PID|field1|field2^field2b&field2c|';
+			var seg = new parseHL7.Segment(str);
+			seg.set('new-field', 2, 0, 2, 2);
+			assert.equal('PID|field1|field2^field2b&new-field', seg.get());
+		});
+
+		it('should assign value to sub-component at extra place', function() {
+			var str = 'PID|field1|field2^field2b&field2c|';
+			var seg = new parseHL7.Segment(str);
+			seg.set('new-field', 2, 0, 2, 4);
+			assert.equal('PID|field1|field2^field2b&field2c&&new-field', seg.get());
 		});
 	});
 
@@ -123,6 +185,62 @@ describe('parseHL7', function() {
 			assert.equal("c", field.get(0, 2, 2));
 			assert.equal("2", field.get(1));
 		});
+
+		it('should assign a single value', function() {
+			var str = "a^b&c~2";
+			var field = new parseHL7.Field(str);
+			field.set("1234");
+			assert.equal("1234", field.get());	
+		});
+
+		it('should assign value to repetitive fields', function() {
+			var str = "a^b&c~2";
+			var field = new parseHL7.Field(str);
+			field.set("1234", 0);
+			field.set("5678", 1);
+			assert.equal("1234~5678", field.get());	
+		});
+
+		it('should assign value to repetitive fields at extra place', function() {
+			var str = "a^b&c~2";
+			var field = new parseHL7.Field(str);
+			field.set("1234", 4);
+			assert.equal("a^b&c~2~~~1234", field.get());	
+		});
+
+		it('should assign value to component', function() {
+			var str = "a^b&c~2";
+			var field = new parseHL7.Field(str);
+			field.set("1234", 0, 1);
+			field.set("5678", 0, 2);
+			assert.equal("1234^5678", field.get(0));	
+			assert.equal("2", field.get(1));	
+			assert.equal("1234^5678~2", field.get());	
+		});
+
+		it('should assign value to component at extra place', function() {
+			var str = "a^b&c~2";
+			var field = new parseHL7.Field(str);
+			field.set("1234", 0, 4);
+			field.set("5678", 1, 3);
+			assert.equal("a^b&c^^1234~2^^5678", field.get());	
+		});
+
+		it('should assign value to sub-component', function() {
+			var str = "a^b&c~2";
+			var field = new parseHL7.Field(str);
+			field.set("1234", 0, 2, 2);
+			assert.equal("a^b&1234", field.get(0));	
+			assert.equal("2", field.get(1));	
+			assert.equal("a^b&1234~2", field.get());	
+		});
+
+		it('should assign value to sub-component at extra place', function() {
+			var str = "a^b&c~2";
+			var field = new parseHL7.Field(str);
+			field.set("1234", 0, 2, 4);
+			assert.equal("a^b&c&&1234~2", field.get());	
+		});
 	});
 
 	describe("#Component(str)", function() {	
@@ -161,7 +279,6 @@ describe('parseHL7', function() {
 			comp.set("c", 3);
 			assert.equal("a&b&c", comp.get());
 			assert.throws(function() { comp.set("d", 0); }, Error, "Index shouldn't be less than 1 (since it's 1 based)");
-			assert.throws(function() { comp.set("d", comp.length+1); }, Error, "Index shouldn't be larger than the length");
 		});
 
 		it('should assign value as a whole component', function() {
@@ -169,6 +286,26 @@ describe('parseHL7', function() {
 			var comp = new parseHL7.Component(str);
 			comp.set("a&b&c");
 			assert.equal("a&b&c", comp.get());
+		});
+
+		it('should assign value at extra place', function() {
+			var str = "1&2&3";
+			var comp = new parseHL7.Component(str);
+			assert.equal(3, comp.length);
+			comp.set("a", 4);
+			comp.set("b", 6);
+			assert.equal(6, comp.length);
+			assert.equal("1&2&3&a&&b", comp.get());
+		});
+
+		it('should assign value at extra place for single value component', function() {
+			var str = "123";
+			var comp = new parseHL7.Component(str);
+			assert.equal(1, comp.length);
+			comp.set("a", 2);
+			comp.set("b", 3);
+			assert.equal(3, comp.length);
+			assert.equal("123&a&b", comp.get());
 		});
 
 		//TODO assign component value with special encoding characters

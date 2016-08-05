@@ -1,3 +1,5 @@
+var utility = require('../utility');
+
 var SEGMENT_SPLIT 					= '\r',
 		FIELD_SPLIT 						= '|',
 		FIELD_REPETITIVE_SPLIT 	= '~',
@@ -56,8 +58,37 @@ var Segment = function(seg) {
 	this.length = this.fields.length;
 };
 
+Segment.prototype.set = function(value, findex, frindex, cindex, scindex) {
+	if (utility.paramSize(arguments) === 1) {
+		Segment.call(this, value);
+		return;
+	}
+	
+	if (findex < 1) {
+		throw new Error("Invalid field index:" + findex + " for segment, which should not be less than 1");
+	}
+
+	if (findex > this.length) {
+		extendField(this, findex);
+	}
+
+	var field = this.fields[findex-1];
+	field.set(value, frindex, cindex, scindex);	
+};
+
+var extendField = function(segment, index) {
+	if (index < segment.fields.length) {
+		throw new Error("Invalid index:" + index + " to extend fields:" + segment.fields);
+	}
+	var i = segment.fields.length;
+	while (i++ < index) {
+		segment.fields.push(new Field(''));
+	}
+	segment.length = segment.fields.length;
+};
+
 Segment.prototype.get = function(findex, frindex, cindex, scindex) {
-	if (arguments.length === 0) {
+	if (utility.paramSize(arguments) === 0) {
 		return this.toString();
 	}
 	var field = this.fields[findex-1];
@@ -71,39 +102,112 @@ Segment.prototype.get = function(findex, frindex, cindex, scindex) {
 };
 
 Segment.prototype.toString = function() {
-	return this.fields.map(function(field) {
+	if (!this.fields) {
+		return this.name;
+	}
+
+	var str = this.name + FIELD_SPLIT + this.fields.map(function(field) {
 		return field.toString();
 	}).join(FIELD_SPLIT);
+	return removeFieldSplitAtEnd(str);
+};
+
+var removeFieldSplitAtEnd = function(str) {
+	var arr = str.match(/^(.*?)\|+$/);
+	if (arr && arr.length > 1) {
+		return arr[1];
+	}
+	return str;
 };
 
 // repetitive field and component index starting from 0
 var Field = function(fie) {
 	this.fields = [];
-
-	var parseValue = function(val) {
-		if ((val.indexOf(COMPONENT_SPLIT) !== -1) || 
-				(val.indexOf(SUB_COMPONENT_SPLIT) !== -1)) {
-			var comps = val.split(COMPONENT_SPLIT);
-			var components = [];
-			comps.forEach(function(comp) {
-				components.push(new Component(comp.trim()));
-			});
-			return components;
-		} else {
-			return val;
-		}
-	};
-	
 	fie.split(FIELD_REPETITIVE_SPLIT).forEach(function(val) {
-		this.fields.push(parseValue(val));
+		this.fields.push(parseFieldEntryValue(val));
 	}.bind(this));
 
 	this.length = this.fields.length;
 };
 
+var parseFieldEntryValue = function(val) {
+	if ((val.indexOf(COMPONENT_SPLIT) !== -1) || 
+			(val.indexOf(SUB_COMPONENT_SPLIT) !== -1)) {
+		var comps = val.split(COMPONENT_SPLIT);
+		var components = [];
+		comps.forEach(function(comp) {
+			components.push(new Component(comp.trim()));
+		});
+		return components;
+	} else {
+		return val;
+	}
+};
+
 Field.prototype.set = function(value, findex, cindex, scindex) {
-	if (arguments.length === 1) {
-		//TODO continue here
+
+	// replace the value of the whole field (inclduing all repetitive fields)
+	if (utility.paramSize(arguments) === 1) {
+		Field.call(this, value);
+		return;
+
+	} else if (utility.paramSize(arguments) > 1) {
+
+		if (findex < 0) {
+			throw new Error("Invalid index:" + findex + " for repetitive field, which should not be less than 0");
+		}
+
+		if (findex >= this.length) {
+			extendRepetitiveField(this, findex);
+		}
+		var field = this.fields[findex];
+		
+		// replace an individual repetitive field's value
+		if (utility.paramSize(arguments) === 2) {
+			this.fields[findex] = parseFieldEntryValue(value);
+			return;
+
+		} else if (utility.paramSize(arguments) > 2) {
+
+			if (cindex < 1) {
+				throw new Error("Invalid index:" + cindex + " for component, which should not be less than 1");
+			}
+
+			// trasfer string value to component array
+			if (typeof field === 'string') {
+				this.fields[findex] = [field];
+				field = this.fields[findex];
+			}
+
+			if (cindex > field.length) {
+				extendComponent(field, cindex);	
+			}
+
+			var comp = field[cindex-1];
+			// set component (or sub-component) value
+			field[cindex-1].set(value, scindex);
+		}
+	}
+};
+
+var extendRepetitiveField = function(field, index) {
+	if (index < field.fields.length) {
+		throw new Error("Invalid index:" + index + " to extend repetitive fields:" + field.fields);
+	}
+	var i = field.fields.length;
+	while (i++ < index) {
+		field.fields.push('');
+	}
+	field.length = field.fields.length;
+};
+
+var extendComponent = function(fieldEntry, index) {
+	if (index < fieldEntry.length) {
+		throw new Error("Invalid index:" + index + " to extend component:" + fieldEntry);
+	}
+	var i = fieldEntry.length;
+	while (i++ < index) {
+		fieldEntry.push(new Component(''));
 	}
 };
 
@@ -112,7 +216,11 @@ Field.prototype.get = function(findex, cindex, scindex) {
 		return this.toString();
 	} 
 
+	if (findex !== undefined && (findex < 0 || findex >= this.fields.length)) {
+		throw new Error("Invalid index:" + findex + " for repetitive field, which should be [0," + this.fields.length + ")");
+	}
 	var entry = this.fields[findex];
+
 	if (cindex === undefined && scindex === undefined) {
 		return getFieldValue(entry);	
 	} else {
@@ -157,16 +265,47 @@ var Component = function(comp) {
 };
 
 Component.prototype.set = function(value, i) {
-	if (this.isSingleValue() || arguments.length === 1) {
+	
+	// replace the value of the whole component
+	if (i === undefined) {
 		Component.call(this, value);
+
+	// set an individual sub-component
 	} else {
-		if (i < 1 || i > this.length) {
-			throw new Error("Invalid index:" + i + ", which should be [1," + this.length + "]");
+
+		if (i < 1) {
+			throw new Error("Invalid index:" + i + ", which should not be less than 1");
+
 		} else {
+
+			// transfer string to sub-component array
+			if (this.isSingleValue()) {
+				var originValue = this.value;
+				this.value = [];
+				this.value.push(originValue);
+			}
+
+			if (i > this.length) {
+				extendSubComponent(this, i);
+			} 
+
 			//TODO encode the possible split characters?
 			this.value[i-1] = value;
+			
 		}
+
 	}
+};
+
+var extendSubComponent = function(comp, index) {
+	if (index < comp.value.length) {
+		throw new Error("Invalid index:" + index + " to extend sub-component:" + comp.value);
+	}
+	var i = comp.value.length;
+	while (i++ < index) {
+		comp.value.push('');
+	}
+	comp.length = comp.value.length;
 };
 
 Component.prototype.get = function(i) {

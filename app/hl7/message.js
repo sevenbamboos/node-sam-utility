@@ -21,8 +21,32 @@ var Message = function(msg) {
 	this.version = this.header.get(12);
 };
 
-Message.prototype.find = function() {
+Message.prototype.filterSegment = function(predict) {
+	var findings = this.segments.filter(predict);
+	if (findings) {
+		return findings[0];
+	} else {
+		return null;
+	}
+};
 
+Message.prototype.filterSegments = function(predict) {
+	return this.segments.filter(predict);
+};
+
+Message.prototype.findSegment = function(segmentName) {
+	var findings = this.findAllSegments(segmentName);	
+	if (findings) {
+		return findings[0];
+	} else {
+		return null;
+	}
+};
+
+Message.prototype.findAllSegments = function(segmentName) {
+	return this.segments.filter(function(seg) {
+		return segmentName.toUpperCase() == seg.name;
+	});	
 };
 
 Message.prototype.toString = function() {

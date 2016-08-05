@@ -31,11 +31,29 @@ describe('hl7', function() {
 			assert.equal("NTE", msg.segments[6].name);
 		});
 
-		it.skip('should find a PID segment from the message', function() {
+		it('should find the existing of a segment', function() {
 			var msg = new hl7.Message(strMsg);
-			var pid = msg.find('pid');
+			var pid = msg.findSegment('pid');
 			assert.equal("PID", pid.name);
+
+			var notExisting = msg.findSegment('notexisting');
+			assert.equal(null, notExisting);
 		});
+
+		it('should find multiple segments', function() {
+			var msg = new hl7.Message(strMsg);
+			var ntes = msg.findAllSegments('nte');
+			assert.equal(2, ntes.length);
+		});
+
+		it('should filter a specific segment', function() {
+			var msg = new hl7.Message(strMsg);
+			var nte = msg.filterSegment(function(currSeg, currIndex) {
+				return currSeg.name == 'NTE' && msg.segments[currIndex-1].name == 'OBR';
+			});
+			assert.equal('code2', nte.get(5));
+		});
+
 	});
 
 	describe("#Segment(str)", function() {	

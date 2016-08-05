@@ -1,7 +1,7 @@
 var assert = require('assert'),
-		parseHL7 = require('../app/hl7/parse');
+		hl7 = require('../app/index').hl7;
 
-describe('parseHL7', function() {
+describe('hl7', function() {
 
 	describe("#Message(msg)", function() {
 
@@ -14,7 +14,7 @@ describe('parseHL7', function() {
 							   "NTE|||some text to be stored as study level attachment||code2";
 
 		it('should turn a string message into a message obj', function() {
-			var msg = new parseHL7.Message(strMsg);
+			var msg = new hl7.Message(strMsg);
 			assert.ok(msg !== null);
 			//console.log(JSON.stringify(objMsg, null, 2));
 			//console.log(objMsg.toString());
@@ -30,12 +30,18 @@ describe('parseHL7', function() {
 			assert.equal("OBR", msg.segments[5].name);
 			assert.equal("NTE", msg.segments[6].name);
 		});
+
+		it.skip('should find a PID segment from the message', function() {
+			var msg = new hl7.Message(strMsg);
+			var pid = msg.find('pid');
+			assert.equal("PID", pid.name);
+		});
 	});
 
 	describe("#Segment(str)", function() {	
 		it('should parse value with multiple fields (MSH)', function() {
 			var str = "MSH|^~\&|Sending test|Sending test facility|Receiving test|Receiving test facility||SECURITY|ORU^R01|12345|P|2.5";
-			var seg = new parseHL7.Segment(str);
+			var seg = new hl7.Segment(str);
 			assert.equal(12, seg.length);
 			assert.equal("MSH", seg.name);
 			assert.equal("|", seg.get(1));
@@ -46,7 +52,7 @@ describe('parseHL7', function() {
 
 		it('should parse value with multiple fields', function() {
 			var str = "PID|||||John Dow||64121968|M|||Every town, every street^2&3~b||(206)3345232||||||987654321";
-			var seg = new parseHL7.Segment(str);
+			var seg = new hl7.Segment(str);
 			assert.equal(19, seg.length);
 			assert.equal("PID", seg.name);
 			assert.equal("", seg.get(1));
@@ -64,7 +70,7 @@ describe('parseHL7', function() {
 
 		it('should parse single value (MSH)', function() {
 			var str = "MSH";
-			var seg = new parseHL7.Segment(str);
+			var seg = new hl7.Segment(str);
 			assert.equal(1, seg.length);
 			assert.equal("|", seg.get(1));
 			assert.equal("MSH", seg.get());
@@ -72,75 +78,75 @@ describe('parseHL7', function() {
 
 		it('should parse single value', function() {
 			var str = "PID";
-			var seg = new parseHL7.Segment(str);
+			var seg = new hl7.Segment(str);
 			assert.equal(0, seg.length);
 			assert.equal("PID", seg.toString());
 			assert.equal("PID", seg.get());
 		});
 
 		it('should not parse empty value', function() {
-			assert.throws(function() {new parseHL7.Segment("");}, Error);
+			assert.throws(function() {new hl7.Segment("");}, Error);
 		});
 
 		it('should assign single value to segment as a whole', function() {
 			var str = 'PID|field1|field2|';
-			var seg = new parseHL7.Segment(str);
+			var seg = new hl7.Segment(str);
 			seg.set('PID|xxx');
 			assert.equal('PID|xxx', seg.get());
 		});
 
 		it('should assign value to field', function() {
 			var str = 'PID|field1|field2|';
-			var seg = new parseHL7.Segment(str);
+			var seg = new hl7.Segment(str);
 			seg.set('new-field2', 2);
 			assert.equal('PID|field1|new-field2', seg.get());
 		});
 
 		it('should assign value to field at extra place', function() {
 			var str = 'PID|field1|field2|';
-			var seg = new parseHL7.Segment(str);
+			var seg = new hl7.Segment(str);
 			seg.set('new-field', 4);
 			assert.equal('PID|field1|field2||new-field', seg.get());
 		});
 
 		it('should assign value to repetitive field', function() {
 			var str = 'PID|field1|field2~field2b|';
-			var seg = new parseHL7.Segment(str);
+			var seg = new hl7.Segment(str);
 			seg.set('new-field', 2, 1);
 			assert.equal('PID|field1|field2~new-field', seg.get());
 		});
 
 		it('should assign value to repetitive field at extra place', function() {
 			var str = 'PID|field1|field2~field2b|';
-			var seg = new parseHL7.Segment(str);
+			var seg = new hl7.Segment(str);
 			seg.set('new-field', 2, 3);
 			assert.equal('PID|field1|field2~field2b~~new-field', seg.get());
 		});
 
 		it('should assign value to component', function() {
 			var str = 'PID|field1|field2^field2b|';
-			var seg = new parseHL7.Segment(str);
+			var seg = new hl7.Segment(str);
 			seg.set('new-field', 2, 0, 2);
 			assert.equal('PID|field1|field2^new-field', seg.get());
 		});
 
 		it('should assign value to component at extra place', function() {
 			var str = 'PID|field1|field2^field2b|';
-			var seg = new parseHL7.Segment(str);
+			var seg = new hl7.Segment(str);
 			seg.set('new-field', 2, 0, 2);
 			assert.equal('PID|field1|field2^new-field', seg.get());
 		});
 
 		it('should assign value to sub-component', function() {
 			var str = 'PID|field1|field2^field2b&field2c|';
-			var seg = new parseHL7.Segment(str);
+			var seg = new hl7.Segment(str);
 			seg.set('new-field', 2, 0, 2, 2);
 			assert.equal('PID|field1|field2^field2b&new-field', seg.get());
 		});
 
 		it('should assign value to sub-component at extra place', function() {
 			var str = 'PID|field1|field2^field2b&field2c|';
-			var seg = new parseHL7.Segment(str);
+			var seg = new hl7.Segment(str);
 			seg.set('new-field', 2, 0, 2, 4);
 			assert.equal('PID|field1|field2^field2b&field2c&&new-field', seg.get());
 		});
@@ -149,7 +155,7 @@ describe('parseHL7', function() {
 	describe("#Field(str)", function() {	
 		it('should parse repetitive values within one field', function() {
 			var str = "1~2~3";
-			var field = new parseHL7.Field(str);
+			var field = new hl7.Field(str);
 			assert.equal(3, field.length);
 			assert.equal("1", field.get(0));
 			assert.equal("2", field.get(1));
@@ -160,7 +166,7 @@ describe('parseHL7', function() {
 
 		it('should parse single value', function() {
 			var str = "1";
-			var field = new parseHL7.Field(str);
+			var field = new hl7.Field(str);
 			assert.equal(1, field.length);
 			assert.equal("1", field.get(0));
 			assert.equal("1", field.get(), "By default, get didn't return the first entry");
@@ -168,7 +174,7 @@ describe('parseHL7', function() {
 
 		it('should parse empty value', function() {
 			var str = "";
-			var field = new parseHL7.Field(str);
+			var field = new hl7.Field(str);
 			assert.equal(1, field.length);
 			assert.equal("", field.get(0));
 			assert.equal("", field.get(), "By default, get didn't return the first entry");
@@ -176,7 +182,7 @@ describe('parseHL7', function() {
 
 		it('should parse complex components', function() {
 			var str = "a^b&c~2";
-			var field = new parseHL7.Field(str);
+			var field = new hl7.Field(str);
 			assert.equal("a", field.get(0, 1));
 			assert.equal("b&c", field.get(0, 2));
 			assert.throws(function() { field.get(0, 0); } , Error, "Invalid component index didn't throw error");
@@ -188,14 +194,14 @@ describe('parseHL7', function() {
 
 		it('should assign a single value', function() {
 			var str = "a^b&c~2";
-			var field = new parseHL7.Field(str);
+			var field = new hl7.Field(str);
 			field.set("1234");
 			assert.equal("1234", field.get());	
 		});
 
 		it('should assign value to repetitive fields', function() {
 			var str = "a^b&c~2";
-			var field = new parseHL7.Field(str);
+			var field = new hl7.Field(str);
 			field.set("1234", 0);
 			field.set("5678", 1);
 			assert.equal("1234~5678", field.get());	
@@ -203,14 +209,14 @@ describe('parseHL7', function() {
 
 		it('should assign value to repetitive fields at extra place', function() {
 			var str = "a^b&c~2";
-			var field = new parseHL7.Field(str);
+			var field = new hl7.Field(str);
 			field.set("1234", 4);
 			assert.equal("a^b&c~2~~~1234", field.get());	
 		});
 
 		it('should assign value to component', function() {
 			var str = "a^b&c~2";
-			var field = new parseHL7.Field(str);
+			var field = new hl7.Field(str);
 			field.set("1234", 0, 1);
 			field.set("5678", 0, 2);
 			assert.equal("1234^5678", field.get(0));	
@@ -220,7 +226,7 @@ describe('parseHL7', function() {
 
 		it('should assign value to component at extra place', function() {
 			var str = "a^b&c~2";
-			var field = new parseHL7.Field(str);
+			var field = new hl7.Field(str);
 			field.set("1234", 0, 4);
 			field.set("5678", 1, 3);
 			assert.equal("a^b&c^^1234~2^^5678", field.get());	
@@ -228,7 +234,7 @@ describe('parseHL7', function() {
 
 		it('should assign value to sub-component', function() {
 			var str = "a^b&c~2";
-			var field = new parseHL7.Field(str);
+			var field = new hl7.Field(str);
 			field.set("1234", 0, 2, 2);
 			assert.equal("a^b&1234", field.get(0));	
 			assert.equal("2", field.get(1));	
@@ -237,7 +243,7 @@ describe('parseHL7', function() {
 
 		it('should assign value to sub-component at extra place', function() {
 			var str = "a^b&c~2";
-			var field = new parseHL7.Field(str);
+			var field = new hl7.Field(str);
 			field.set("1234", 0, 2, 4);
 			assert.equal("a^b&c&&1234~2", field.get());	
 		});
@@ -246,7 +252,7 @@ describe('parseHL7', function() {
 	describe("#Component(str)", function() {	
 		it('should parse value with multiple sub-components', function() {
 			var str = "1&2&3";
-			var comp = new parseHL7.Component(str);
+			var comp = new hl7.Component(str);
 			assert.equal(3, comp.length);
 			assert.equal("1", comp.get(1));
 			assert.equal("2", comp.get(2));
@@ -257,7 +263,7 @@ describe('parseHL7', function() {
 
 		it('should parse single value', function() {
 			var str = "1";
-			var comp = new parseHL7.Component(str);
+			var comp = new hl7.Component(str);
 			assert.equal(1, comp.length);
 			assert.equal("1", comp.get(1));
 			assert.equal("1", comp.get(), "single value shouldn't care about index");
@@ -265,7 +271,7 @@ describe('parseHL7', function() {
 
 		it('should parse empty value', function() {
 			var str = "";
-			var comp = new parseHL7.Component(str);
+			var comp = new hl7.Component(str);
 			assert.equal(1, comp.length);
 			assert.equal("", comp.get(1));
 			assert.equal("", comp.get(), "single value shouldn't care about index");
@@ -273,7 +279,7 @@ describe('parseHL7', function() {
 
 		it('should assign single value', function() {
 			var str = "1&2&3";
-			var comp = new parseHL7.Component(str);
+			var comp = new hl7.Component(str);
 			comp.set("a", 1);
 			comp.set("b", 2);
 			comp.set("c", 3);
@@ -283,14 +289,14 @@ describe('parseHL7', function() {
 
 		it('should assign value as a whole component', function() {
 			var str = "1&2&3";
-			var comp = new parseHL7.Component(str);
+			var comp = new hl7.Component(str);
 			comp.set("a&b&c");
 			assert.equal("a&b&c", comp.get());
 		});
 
 		it('should assign value at extra place', function() {
 			var str = "1&2&3";
-			var comp = new parseHL7.Component(str);
+			var comp = new hl7.Component(str);
 			assert.equal(3, comp.length);
 			comp.set("a", 4);
 			comp.set("b", 6);
@@ -300,7 +306,7 @@ describe('parseHL7', function() {
 
 		it('should assign value at extra place for single value component', function() {
 			var str = "123";
-			var comp = new parseHL7.Component(str);
+			var comp = new hl7.Component(str);
 			assert.equal(1, comp.length);
 			comp.set("a", 2);
 			comp.set("b", 3);

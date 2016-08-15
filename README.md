@@ -52,6 +52,8 @@ component also supports get and set methods:
 
 sub-component is plain string
 
+Please refer to test/test_hl7.js for more details
+
 ## Maven cleaner
 Usage:
 ```

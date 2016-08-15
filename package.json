@@ -1,7 +1,7 @@
 {
   "name": "sam-utility",
-  "version": "1.0.3",
-  "description": "Sam's commonly-used utilities",
+  "version": "1.0.4",
+  "description": "Sam's commonly-used utilities: HL7 parser, Apache Maven repository cleaner",
   "main": "app/index.js",
   "scripts": {
     "test": "mocha"

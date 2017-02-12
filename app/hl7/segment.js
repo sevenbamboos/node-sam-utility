@@ -3,22 +3,34 @@ var constant = require('./constant');
 var Field = require('./field');
 
 var Segment = function(seg) {
+	this.fields = [];
+	this.name = '';
+	this.length = this.fields.length;
+
 	if (!seg) {
-		throw new Error("empty segment");
+		//throw new Error("empty segment");
+		return;
 	}
 
-	this.fields = [];
 	seg.split(constant.FIELD_SPLIT).forEach(function(fie) {
-		this.fields.push(new Field(fie.trim()));
+		this.addField(new Field(fie.trim()));
 	}.bind(this));
-
-	this.name = this.fields[0].toString().toUpperCase();
 
 	// for MSH, msh.1 is |
 	if (this.name == constant.HEADER_NAME) {
 		this.fields[0] = constant.FIELD_SPLIT;
 	} else { // for rest segments, segment name is excluded from fields
 		this.fields.shift();
+	}
+
+	this.length = this.fields.length;
+};
+
+Segment.prototype.addField = function(field) {
+	this.fields.push(field);
+
+	if (!this.name) {
+		this.name = this.fields[0].toString().toUpperCase();
 	}
 	
 	this.length = this.fields.length;

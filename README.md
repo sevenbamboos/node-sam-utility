@@ -1,8 +1,10 @@
 # Sam's utilities
 
-## HL7 parser
-
 [![Build Status](https://travis-ci.org/sevenbamboos/node-sam-utility.svg?branch=master)](https://travis-ci.org/sevenbamboos/node-sam-utility)
+
+[![Coverage Status](https://coveralls.io/repos/github/sevenbamboos/node-sam-utility/badge.svg?branch=master)](https://coveralls.io/github/sevenbamboos/node-sam-utility?branch=master)
+
+## HL7 parser
 
 Usage:
 How to parse a HL7 message

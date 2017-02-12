@@ -4,7 +4,9 @@
   "description": "Sam's commonly-used utilities: HL7 parser, Apache Maven repository cleaner",
   "main": "app/index.js",
   "scripts": {
-    "test": "mocha"
+		"test": "mocha",
+		"cover": "./node_modules/.bin/istanbul cover _mocha",
+		"coveralls": "npm run cover -- --report lcovonly && cat ./coverage/lcov.info | ./node_modules/.bin/coveralls"
   },
   "repository": {
     "type": "git",
@@ -18,6 +20,7 @@
   },
   "devDependencies": {
     "coveralls": "^2.11.16",
+    "istanbul": "^0.4.5",
     "mocha-lcov-reporter": "^1.2.0"
   }
 }

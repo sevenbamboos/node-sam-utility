@@ -1,6 +1,9 @@
 # Sam's utilities
 
 ## HL7 parser
+
+[![Build Status](https://travis-ci.org/sevenbamboos/node-sam-utility.svg?branch=master)](https://travis-ci.org/sevenbamboos/node-sam-utility)
+
 Usage:
 How to parse a HL7 message
 ```

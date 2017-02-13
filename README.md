@@ -4,6 +4,10 @@
 
 [![Coverage Status](https://coveralls.io/repos/github/sevenbamboos/node-sam-utility/badge.svg?branch=master)](https://coveralls.io/github/sevenbamboos/node-sam-utility?branch=master)
 
+[![bitHound Overall Score](https://www.bithound.io/github/sevenbamboos/node-sam-utility/badges/score.svg)](https://www.bithound.io/github/sevenbamboos/node-sam-utility)
+
+[![bitHound Code](https://www.bithound.io/github/sevenbamboos/node-sam-utility/badges/code.svg)](https://www.bithound.io/github/sevenbamboos/node-sam-utility)
+
 ## HL7 parser
 
 Usage:

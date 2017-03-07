@@ -1,17 +1,17 @@
 const fs = require('fs'),
       readline = require('readline');
 
-// TODO extract application code into a new file
-if (process.argv.length < 3) {
-  console.error("Invalid params. Usage: node diff_normalization diff_file_1 diff_file_2 ...");
-  return;
+function insert(str, index, appendStr) {
+  return str.slice(0, index) + appendStr + str.slice(index);
 }
 
-let normalize = function(file) {
+exports.insert = insert;
+
+function normalize(file) {
 
   let getNewFileName = function(file) {
     const index = file.lastIndexOf('\.');
-    return file.slice(0, index) + '_nor' + file.slice(index);
+    return insert(file, index, '_diffn');
   };
 
   const ws = fs.createWriteStream(getNewFileName(file));
@@ -35,10 +35,4 @@ let normalize = function(file) {
 
 };
 
-let files = process.argv.slice(2);
-files.forEach(val => {
-  normalize(val);
-});
-
-// TODO module.exports and exports?
 exports.normalize = normalize;
